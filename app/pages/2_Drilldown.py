@@ -165,24 +165,45 @@ fig = go.Figure(
     data=[
         go.Sankey(
             arrangement="snap",
-            node=dict(label=nodes, pad=15, thickness=15),
+            textfont=dict(size=14, color="black"),
+            node=dict(
+                label=nodes,
+                pad=15,
+                thickness=15,
+                line=dict(color="rgba(0,0,0,0.35)", width=1),
+            ),
             link=dict(source=sources, target=targets, value=values),
         )
     ]
 )
-fig.update_layout(height=750, margin=dict(l=10, r=10, t=10, b=10))
+fig.update_layout(
+    height=750,
+    margin=dict(l=10, r=10, t=10, b=10),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(color="black"),
+)
 st.plotly_chart(fig, use_container_width=True)
 
 # --- Tables
 st.subheader("Top agencies")
-st.dataframe(agency_totals, use_container_width=True, hide_index=True)
+st.dataframe(
+    agency_totals.style.format({"agency_total": "${:,.0f}"}),
+    use_container_width=True,
+    hide_index=True,
+)
 
 st.subheader("Top programs (within agencies)")
 top_programs = (
     prog.sort_values("amt", ascending=False)[["agency_rollup", "program_rollup", "amt"]]
     .head(100)
+    .rename(columns={"amt": "amount"})
 )
-st.dataframe(top_programs, use_container_width=True, hide_index=True)
+st.dataframe(
+    top_programs.style.format({"amount": "${:,.0f}"}),
+    use_container_width=True,
+    hide_index=True,
+)
 
 # Unmapped hint
 if show_unmapped:

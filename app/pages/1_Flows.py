@@ -98,7 +98,10 @@ if view_choice.startswith("Net"):
     net_tbl = net_tbl.sort_values("withdrawals", ascending=False)
 
     st.subheader("Net by cabinet")
-    st.dataframe(net_tbl, use_container_width=True)
+    st.dataframe(
+        net_tbl.style.format({"deposits": "${:,.0f}", "withdrawals": "${:,.0f}", "net": "${:,.0f}"}),
+        use_container_width=True,
+    )
     st.stop()
 
 # --- Build Sankey (gross)
@@ -135,12 +138,24 @@ fig = go.Figure(
     data=[
         go.Sankey(
             arrangement="snap",
-            node=dict(label=nodes, pad=15, thickness=15),
+            textfont=dict(size=14, color="black"),
+            node=dict(
+                label=nodes,
+                pad=15,
+                thickness=15,
+                line=dict(color="rgba(0,0,0,0.35)", width=1),
+            ),
             link=dict(source=sources, target=targets, value=values),
         )
     ]
 )
-fig.update_layout(height=650, margin=dict(l=10, r=10, t=10, b=10))
+fig.update_layout(
+    height=650,
+    margin=dict(l=10, r=10, t=10, b=10),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    font=dict(color="black"),
+)
 
 st.subheader("Cabinet-level gross flows")
 st.plotly_chart(fig, use_container_width=True)
@@ -168,7 +183,7 @@ cab_tbl = cab_tbl.sort_values("withdrawals", ascending=False)
 
 # Streamlit supports "row click selection" on st.dataframe in recent versions
 event = st.dataframe(
-    cab_tbl,
+    cab_tbl.style.format({"deposits": "${:,.0f}", "withdrawals": "${:,.0f}", "net": "${:,.0f}"}),
     use_container_width=True,
     hide_index=True,
     on_select="rerun",
@@ -185,7 +200,7 @@ try:
         st.success(f"Selected cabinet: **{selected_cab}**. Now open the **Drilldown** page in the sidebar.")
 except Exception:
     st.info("If row selection isn't available, use the Drilldown page dropdown to choose a cabinet.")
-    
+
 
 # Unmapped diagnostics (super helpful for tightening the mapping)
 unmapped = dff[dff["cabinet_supercategory"] == "Unmapped"].copy()
@@ -199,6 +214,9 @@ if len(unmapped) > 0:
         .sort_values("transaction_today_amt", ascending=False)
         .head(50)
     )
-    st.dataframe(top_unmapped, use_container_width=True)
+    st.dataframe(
+        top_unmapped.style.format({"transaction_today_amt": "${:,.0f}"}),
+        use_container_width=True,
+    )
 else:
     st.success("No unmapped categories in the selected range.")
