@@ -118,7 +118,11 @@ def load_deposits_withdrawals(path: Path | None = None) -> pd.DataFrame:
     # Exclude TGA sub-total lines entirely
     df = df[~df["transaction_catg"].isin([
         "Sub-Total Deposits",
-        "Sub-Total Withdrawals"
+        "Sub-Total Withdrawals",
+        "Public Debt Cash Issues (Table III-B)",
+        "Public Debt Cash Issues (Table IIIB)",
+        "Public Debt Cash Redemp. (Table III-B)",
+        "Public Debt Cash Redemp. (Table IIIB)"
     ])].copy()
 
     df = df[df["transaction_today_amt"] != 0].copy()
