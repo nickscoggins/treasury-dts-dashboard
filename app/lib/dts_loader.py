@@ -103,23 +103,17 @@ def load_deposits_withdrawals(path: Path | None = None) -> pd.DataFrame:
 
     df["transaction_today_amt"] = pd.to_numeric(df["transaction_today_amt"], errors="coerce").fillna(0.0)
 
+    # Amounts are in millions -> dollars
+    df["transaction_today_amt"] = df["transaction_today_amt"] * 1_000_000
+
     for c in ["account_type", "transaction_type", "transaction_catg", "transaction_catg_desc"]:
         df[c] = df[c].astype("string").str.strip()
 
-    # Drop the two total lines you described (null categories)
-    is_total_deposits = (
-        (df["account_type"] == "Treasury General Account Total Deposits")
-        & (df["transaction_type"] == "Deposits")
-        & (df["transaction_catg"].isna())
-        & (df["transaction_catg_desc"].isna())
-    )
-    is_total_withdrawals = (
-        (df["account_type"] == "Treasury General Account Total Withdrawals")
-        & (df["transaction_type"] == "Withdrawals")
-        & (df["transaction_catg"].isna())
-        & (df["transaction_catg_desc"].isna())
-    )
-    df = df[~(is_total_deposits | is_total_withdrawals)].copy()
+    # Exclude TGA total lines entirely (they'll otherwise double-count flows)
+    df = df[~df["account_type"].isin([
+        "Treasury General Account Total Deposits",
+        "Treasury General Account Total Withdrawals",
+    ])].copy()
 
     df = df[df["transaction_today_amt"] != 0].copy()
     return df
