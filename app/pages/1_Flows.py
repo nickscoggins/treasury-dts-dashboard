@@ -145,6 +145,48 @@ fig.update_layout(height=650, margin=dict(l=10, r=10, t=10, b=10))
 st.subheader("Cabinet-level gross flows")
 st.plotly_chart(fig, use_container_width=True)
 
+st.divider()
+st.subheader("Click a cabinet to drill down")
+
+# Cabinet summary table for clicking
+dep_tbl = (
+    dff[dff["transaction_type"] == "Deposits"]
+    .groupby("cabinet_supercategory", as_index=False)["transaction_today_amt"]
+    .sum()
+    .rename(columns={"transaction_today_amt": "deposits"})
+)
+wdr_tbl = (
+    dff[dff["transaction_type"] == "Withdrawals"]
+    .groupby("cabinet_supercategory", as_index=False)["transaction_today_amt"]
+    .sum()
+    .rename(columns={"transaction_today_amt": "withdrawals"})
+)
+
+cab_tbl = dep_tbl.merge(wdr_tbl, on="cabinet_supercategory", how="outer").fillna(0.0)
+cab_tbl["net"] = cab_tbl["deposits"] - cab_tbl["withdrawals"]
+cab_tbl = cab_tbl.sort_values("withdrawals", ascending=False)
+
+# Streamlit supports "row click selection" on st.dataframe in recent versions
+event = st.dataframe(
+    cab_tbl,
+    use_container_width=True,
+    hide_index=True,
+    on_select="rerun",
+    selection_mode="single-row",
+)
+
+# Persist selection for the Drilldown page
+try:
+    sel_rows = event.selection.get("rows", [])
+    if sel_rows:
+        selected_idx = sel_rows[0]
+        selected_cab = cab_tbl.iloc[selected_idx]["cabinet_supercategory"]
+        st.session_state["selected_cabinet"] = str(selected_cab)
+        st.success(f"Selected cabinet: **{selected_cab}**. Now open the **Drilldown** page in the sidebar.")
+except Exception:
+    st.info("If row selection isn't available, use the Drilldown page dropdown to choose a cabinet.")
+    
+
 # Unmapped diagnostics (super helpful for tightening the mapping)
 unmapped = dff[dff["cabinet_supercategory"] == "Unmapped"].copy()
 if len(unmapped) > 0:
