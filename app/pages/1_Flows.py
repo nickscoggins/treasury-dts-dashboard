@@ -116,22 +116,29 @@ wdr_by_cab = (
     .sum()
 )
 
-# Prefix labels so left/right cabinets stay visually distinct
-dep_by_cab["node"] = "Deposits: " + dep_by_cab["cabinet_supercategory"].astype(str)
-wdr_by_cab["node"] = "Withdrawals: " + wdr_by_cab["cabinet_supercategory"].astype(str)
-tga_node = "Treasury General Account (TGA)"
+tga_node_id = "tga"
+tga_label = "Treasury General Account (TGA)"
 
-nodes = dep_by_cab["node"].tolist() + [tga_node] + wdr_by_cab["node"].tolist()
-node_index = {label: i for i, label in enumerate(nodes)}
+# Unique IDs (internal) vs display labels (what the user sees)
+dep_by_cab["node_id"] = "dep::" + dep_by_cab["cabinet_supercategory"].astype(str)
+dep_by_cab["label"] = dep_by_cab["cabinet_supercategory"].astype(str)
+
+wdr_by_cab["node_id"] = "wdr::" + wdr_by_cab["cabinet_supercategory"].astype(str)
+wdr_by_cab["label"] = wdr_by_cab["cabinet_supercategory"].astype(str)
+
+nodes_id = dep_by_cab["node_id"].tolist() + [tga_node_id] + wdr_by_cab["node_id"].tolist()
+nodes_label = dep_by_cab["label"].tolist() + [tga_label] + wdr_by_cab["label"].tolist()
+
+node_index = {nid: i for i, nid in enumerate(nodes_id)}
 
 # Links: Deposits cabinets -> TGA
-sources = [node_index[x] for x in dep_by_cab["node"]]
-targets = [node_index[tga_node]] * len(dep_by_cab)
+sources = [node_index[nid] for nid in dep_by_cab["node_id"]]
+targets = [node_index[tga_node_id]] * len(dep_by_cab)
 values = dep_by_cab["transaction_today_amt"].tolist()
 
 # Links: TGA -> Withdrawals cabinets
-sources += [node_index[tga_node]] * len(wdr_by_cab)
-targets += [node_index[x] for x in wdr_by_cab["node"]]
+sources += [node_index[tga_node_id]] * len(wdr_by_cab)
+targets += [node_index[nid] for nid in wdr_by_cab["node_id"]]
 values += wdr_by_cab["transaction_today_amt"].tolist()
 
 fig = go.Figure(
@@ -140,7 +147,7 @@ fig = go.Figure(
             arrangement="snap",
             textfont=dict(size=14, color="black"),
             node=dict(
-                label=nodes,
+                label=nodes_label,  # <-- display labels (no prefixes)
                 pad=15,
                 thickness=15,
                 line=dict(color="rgba(0,0,0,0.35)", width=1),
@@ -156,6 +163,7 @@ fig.update_layout(
     plot_bgcolor="white",
     font=dict(color="black"),
 )
+
 
 st.subheader("Cabinet-level gross flows")
 st.plotly_chart(fig, use_container_width=True)

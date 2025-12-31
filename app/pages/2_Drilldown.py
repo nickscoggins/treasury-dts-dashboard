@@ -129,16 +129,25 @@ if not other_prog.empty:
 else:
     prog2 = top_prog.drop(columns=["rank_within_agency"])
 
-# --- Build Sankey nodes
-cab_node = f"{cabinet}"
-agency_nodes = [f"Agency: {a}" for a in agency_totals["agency_rollup"].astype(str).tolist()]
+# --- Build Sankey nodes (unique IDs + clean display labels)
+cab_id = "cab"
+cab_label = str(cabinet)
 
-# Programs can repeat across agencies, so prefix with agency to keep them unique
-prog2["program_node"] = "Program: " + prog2["agency_rollup"].astype(str) + " → " + prog2["program_rollup"].astype(str)
-program_nodes = prog2["program_node"].tolist()
+agency_totals = agency_totals.copy()
+agency_totals["agency_id"] = "agency::" + agency_totals["agency_rollup"].astype(str)
+agency_totals["agency_label"] = agency_totals["agency_rollup"].astype(str)
 
-nodes = [cab_node] + agency_nodes + program_nodes
-node_index = {label: i for i, label in enumerate(nodes)}
+# Programs: keep unique IDs using agency+program, but display only program name
+prog2 = prog2.copy()
+prog2["program_id"] = (
+    "program::" + prog2["agency_rollup"].astype(str) + "||" + prog2["program_rollup"].astype(str)
+)
+prog2["program_label"] = prog2["program_rollup"].astype(str)
+
+nodes_id = [cab_id] + agency_totals["agency_id"].tolist() + prog2["program_id"].tolist()
+nodes_label = [cab_label] + agency_totals["agency_label"].tolist() + prog2["program_label"].tolist()
+
+node_index = {nid: i for i, nid in enumerate(nodes_id)}
 
 sources = []
 targets = []
@@ -146,20 +155,16 @@ values = []
 
 # Links: Cabinet -> Agency
 for _, r in agency_totals.iterrows():
-    a = str(r["agency_rollup"])
-    amt = float(r["agency_total"])
-    sources.append(node_index[cab_node])
-    targets.append(node_index[f"Agency: {a}"])
-    values.append(amt)
+    sources.append(node_index[cab_id])
+    targets.append(node_index[r["agency_id"]])
+    values.append(float(r["agency_total"]))
 
 # Links: Agency -> Program
 for _, r in prog2.iterrows():
-    a = str(r["agency_rollup"])
-    pnode = r["program_node"]
-    amt = float(r["amt"])
-    sources.append(node_index[f"Agency: {a}"])
-    targets.append(node_index[pnode])
-    values.append(amt)
+    agency_id = "agency::" + str(r["agency_rollup"])
+    sources.append(node_index[agency_id])
+    targets.append(node_index[r["program_id"]])
+    values.append(float(r["amt"]))
 
 fig = go.Figure(
     data=[
@@ -167,7 +172,7 @@ fig = go.Figure(
             arrangement="snap",
             textfont=dict(size=14, color="black"),
             node=dict(
-                label=nodes,
+                label=nodes_label,  # <-- display labels (no prefixes)
                 pad=15,
                 thickness=15,
                 line=dict(color="rgba(0,0,0,0.35)", width=1),
@@ -183,6 +188,7 @@ fig.update_layout(
     plot_bgcolor="white",
     font=dict(color="black"),
 )
+
 st.plotly_chart(fig, use_container_width=True)
 
 # --- Tables
